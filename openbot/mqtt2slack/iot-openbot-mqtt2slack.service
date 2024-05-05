@@ -1,0 +1,11 @@
+[Unit]
+Description=Routes openbot MQTT messages to slack
+
+[Service]
+User=python-mqtt
+WorkingDirectory=/var/iot/openbot/mqtt2slack
+ExecStart=/bin/bash -c 'cd /var/iot/openbot/mqtt2slack && source env/bin/activate && python script.py'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

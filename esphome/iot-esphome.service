@@ -1,0 +1,13 @@
+[Unit]
+Description=Runs ESPHome
+After=network-online.target
+
+[Service]
+User=esphome
+WorkingDirectory=/var/iot/esphome
+ExecStart=/usr/local/bin/esphome /var/iot/esphome/config/ dashboard
+Restart=on-failure
+RESTARTSec=5s
+
+[Install]
+WantedBy=multi-user.target

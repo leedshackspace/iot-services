@@ -1,0 +1,128 @@
+esphome:
+  name: lhs-openbot
+  includes:
+    - openbotpowerpot.h
+
+esp8266:
+  board: nodemcuv2
+  #framework:
+  #  version: 2.7.4
+
+# Enable logging
+logger:
+  level: DEBUG
+
+mqtt:
+  broker: !secret mqtt_server
+  topic_prefix: esphome/openbot/prime-test
+  keepalive: 5s
+  reboot_timeout: 2min
+  log_topic:
+    topic: "logger"
+    level: WARN
+
+# Enable Home Assistant API
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: !secret homeassistant_api_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Lhs-Openbot-Prime"
+    password: "redacted"
+    
+
+web_server: # Enables Web Server for active debug/etc
+  port: 80
+
+captive_portal:
+
+output:
+- platform: custom
+  type: float
+  lambda: |-
+    auto openbot_ctrl = new OpenbotMainRead(A0, D1, D2, 10, 16);
+    App.register_component(openbot_ctrl);
+    return {openbot_ctrl->target_enable, openbot_ctrl->position_target};
+
+  outputs:
+  - id: target_enable_out
+  - id: position_target_out
+
+switch:
+- platform: gpio
+  name: "Green LED"
+  pin: D4
+  id: green_led
+
+- platform: gpio
+  name: "Red LED"
+  pin: D3
+  id: red_led
+
+- platform: template
+  lambda: |-
+    if (id(target_enable)->state > 0.5) {
+      return true;
+    } else {
+      return false;
+    }
+  id: target_enable
+  name: "Target Enable"
+  turn_on_action:
+  - output.turn_on: target_enable_out
+  turn_off_action:
+  - output.turn_off: target_enable_out
+
+number:
+- platform: template
+  name: "Target Position"
+  id: position_target
+  min_value: 0
+  max_value: 1024
+  step: 1
+  optimistic: true
+  set_action:
+  - lambda:  |-
+      ESP_LOGD("main", "[LHSSUPERTEST] eetting target position to %f", x);
+      ESP_LOGD("main", "[before] eetting target position to %f", x);
+      id(position_target_out).set_level(x/1024.0f);
+      ESP_LOGD("main", "[after] eetting target position to %f", x);
+
+
+binary_sensor:
+- platform: gpio
+  pin: D5
+  name: "Button"
+  device_class: presence
+  filters:
+  - invert:
+  - delayed_off: 5s
+
+sensor:
+#- platform: custom
+#  lambda: |-
+#    auto custom_adc = new BetterADC(A0, 5, 2, 32);
+#    App.register_component(custom_adc);
+#    return {custom_adc};
+#  sensors:
+#  - id: "knob_pos"
+#    unit_of_measurement: "counts"
+#    name: "Knob Pos"
+- platform: adc
+  pin: A0
+  id: "knob_pos"
+  name: "Knob Pos"
+  raw: true
+  unit_of_measurement: "counts"
+  update_interval: 0.2s
+  filters:
+  - delta: 3.0
